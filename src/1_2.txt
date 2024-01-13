@@ -1,0 +1,59 @@
+#include "stm32f4xx_hal.h"
+
+void LED_Init();
+void Button_Init();
+
+int main(void) {
+  HAL_Init();
+  LED_Init();
+  Button_Init();
+
+  int isBlinking = 1;  // Flag to track the LED blinking state
+
+  while (1)
+  {
+
+    // Check if the button is pressed
+    if ((GPIOC->IDR & (1 << 13)) == 0) {
+      // Debounce the button
+      HAL_Delay(50);
+
+      // Check the button state again after debounce
+      if ((GPIOC->IDR & (1 << 13)) == 0) {
+        // Button is pressed, toggle the blinking state
+        isBlinking = !isBlinking;
+
+        // Wait for button release
+        while ((GPIOC->IDR & (1 << 13)) == 0);
+      }
+    }
+
+    // Toggle LED based on the blinking state
+    if (isBlinking) {
+      GPIOA->ODR ^= (1 << 5);  // Toggle the LED pin
+      HAL_Delay(100);       // Delay for the blinking frequency
+    } else {
+      GPIOA->ODR &= ~(1 << 5);  // Turn off the LED if not blinking
+    }
+  } 
+}
+
+void LED_Init() {
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  // Configure LED pin as output in push-pull mode with pull-up
+  GPIOA->MODER |= (1 << (2 * 5));
+  GPIOA->OTYPER &= ~(1 << 5);
+  GPIOA->PUPDR |= (1 << (5 * 2));
+  GPIOA->OSPEEDR |= (3 << (5 * 2));
+}
+
+void Button_Init() {
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  // Configure button pin as input with pull-up
+  GPIOC->MODER &= ~(3 << (2 * 13));
+  GPIOC->PUPDR |= (1 << (2 * 13));
+}
+
+void SysTick_Handler(void) {
+  HAL_IncTick();
+}
