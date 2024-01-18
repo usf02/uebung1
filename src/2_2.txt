@@ -1,0 +1,94 @@
+#include "stm32f4xx_hal.h"
+
+// Define GPIO pins connected to 74HC595 shift registers
+#define DATA_PIN GPIO_PIN_9
+#define CLOCK_PIN GPIO_PIN_8
+#define LATCH_PIN GPIO_PIN_5
+
+void initShiftRegisters(void);
+void writeData(uint8_t data, int segment);
+
+//define display patterns and digit selection in hexadecimal
+const uint8_t hexPatterns[] = {0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0X80, 0X90, 0x88, 0x83, 0xC6, 0xA1, 0x86, 0x8E};
+const uint8_t segmentSelect[] = {0x10,0x20,0x40,0x80};
+
+int main(void) {
+    // Initialize the HAL Library
+    HAL_Init();
+
+    // Initialize the shift registers
+    initShiftRegisters();
+
+    while (1) {
+      // Display a hexadecimal number
+      writeData(0xA, 0);
+      writeData(0x3, 1);
+      writeData(0x7, 2);
+      writeData(0x1, 3);
+    }
+}
+
+void initShiftRegisters(void) {
+    // Enable the GPIO Clocks
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    // Configure the GPIO pins for the shift registers
+    GPIO_InitTypeDef GPIO_InitStructA = {0};
+    GPIO_InitStructA.Pin = DATA_PIN | CLOCK_PIN;
+    GPIO_InitStructA.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStructA.Pull = GPIO_NOPULL;
+    GPIO_InitStructA.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStructA);
+
+    GPIO_InitTypeDef GPIO_InitStructB = {0};
+    GPIO_InitStructB.Pin = LATCH_PIN;
+    GPIO_InitStructB.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStructB.Pull = GPIO_NOPULL;
+    GPIO_InitStructB.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStructB);
+
+    // Initialize the shift registers to an initial state
+    HAL_GPIO_WritePin(GPIOA, DATA_PIN | CLOCK_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, LATCH_PIN, GPIO_PIN_SET);
+}
+
+void writeData(uint8_t data, int segment) {
+
+  // Pull LATCH low to start the data transfer
+  HAL_GPIO_WritePin(GPIOB, LATCH_PIN, GPIO_PIN_RESET);
+
+  data = hexPatterns[data];
+
+  // Shift the data bits out one by one
+  for (int i = 0; i < 8; i++) {
+    // Set the DATA pin to the value of the current bit
+    HAL_GPIO_WritePin(GPIOA, DATA_PIN, (data & 0b10000000) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    
+    // Pulse the CLOCK pin to shift the next bit
+    HAL_GPIO_WritePin(GPIOA, CLOCK_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, CLOCK_PIN, GPIO_PIN_RESET);
+
+    // Shift the data to the next bit
+    data <<= 1;
+  }
+
+  for (int i = 0; i < 8; i++) {
+
+    segment = segmentSelect[segment];
+
+    // Set the DATA pin to the value of the current bit
+    HAL_GPIO_WritePin(GPIOA, DATA_PIN, (segment & 0b10000000) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    // Pulse the CLOCK pin to shift the next bit
+    HAL_GPIO_WritePin(GPIOA, CLOCK_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, CLOCK_PIN, GPIO_PIN_RESET);
+
+    // Shift the data to the next bit
+    segment <<= 1;
+  }
+
+  // Pull LATCH high to update the display
+  HAL_GPIO_WritePin(GPIOB, LATCH_PIN, GPIO_PIN_SET);
+
+}
