@@ -10,7 +10,9 @@
 ADC_HandleTypeDef hadc1;
 
 void Reg_Init();
-void writeData(uint16_t hexValue);
+void sendToSeg(uint8_t segNo, uint8_t hexVal);
+void shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t value);
+void displayHex(uint16_t hexValue);
 void ADC_Init();
 static void SystemClock_Config(void);
 void Error_Handler(void);
